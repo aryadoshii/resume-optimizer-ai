@@ -19,11 +19,10 @@ from backend.utils import (
     parse_text_file,
     save_markdown,
     convert_markdown_to_pdf,
-    save_generation_history,
-    load_generation_history,
     validate_file_type
 )
 from backend.nodes import call_llm_with_retry, draft_tailored_resume, critique_resume, finalize_resume, analyze_job_description
+from backend.database import init_database, save_generation, get_all_generations
 from frontend.styles import get_theme_css
 from frontend.components import (
     render_header,
@@ -40,7 +39,7 @@ from config.settings import settings, INPUTS_DIR
 
 # Page configuration
 st.set_page_config(
-    page_title="Career-Sync-AI",
+    page_title="Resume-Optimizer-AI",
     page_icon="📄",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -49,6 +48,9 @@ st.set_page_config(
 
 def initialize_session_state():
     """Initialize session state variables."""
+    # Initialize database
+    init_database()
+    
     if "workflow_running" not in st.session_state:
         st.session_state.workflow_running = False
     if "final_state" not in st.session_state:
@@ -61,6 +63,8 @@ def initialize_session_state():
         st.session_state.evaluation_done = False
     if "initial_critique" not in st.session_state:
         st.session_state.initial_critique = None
+    if "current_generation_id" not in st.session_state:
+        st.session_state.current_generation_id = None
 
 
 def parse_job_description_input(text_input, file_input) -> tuple[str, str]:
@@ -127,7 +131,7 @@ def evaluate_resume(resume_content: str, resume_filename: str, jd_content: str, 
     status_text = st.empty()
     
     # Step 1: Analyze JD
-    status_text.info("📊 Analyzing job description...")
+    status_text.info("📊 Analyzing job requirements...")
     progress_bar.progress(25)
     
     jd_result = analyze_job_description(initial_state)
@@ -152,7 +156,7 @@ def evaluate_resume(resume_content: str, resume_filename: str, jd_content: str, 
     status_text.empty()
     progress_bar.empty()
     
-    # Store results
+    # Store results - save initial critique separately
     st.session_state.current_state = initial_state
     st.session_state.initial_critique = initial_state.get("critique")
     st.session_state.suggestions = initial_state.get("suggestions")
@@ -169,21 +173,21 @@ def create_final_resume():
     status_text = st.empty()
     
     # Step 1: Drafting
-    status_text.info("✍️ Tailoring your resume...")
+    status_text.info("✨ Crafting your optimized resume...")
     progress_bar.progress(33)
     
     draft_result = draft_tailored_resume(current_state)
     current_state.update(draft_result)
     
     # Step 2: Final evaluation
-    status_text.info("🔍 Quality check...")
+    status_text.info("🎯 Polishing and perfecting...")
     progress_bar.progress(66)
     
     critique_result = critique_resume(current_state)
     current_state.update(critique_result)
     
     # Step 3: Finalizing
-    status_text.info("✅ Finalizing your resume...")
+    status_text.info("✅ Finalizing your professional resume...")
     progress_bar.progress(90)
     
     finalize_result = finalize_resume(current_state)
@@ -198,10 +202,13 @@ def create_final_resume():
     
     current_state["output_pdf_path"] = str(pdf_path)
     
-    save_generation_history(current_state, {
+    # Save to database with initial critique
+    current_state["initial_critique"] = st.session_state.initial_critique
+    generation_id = save_generation(current_state, {
         "markdown": str(markdown_path),
         "pdf": str(pdf_path)
     })
+    st.session_state.current_generation_id = generation_id
     
     progress_bar.progress(100)
     status_text.empty()
@@ -257,25 +264,16 @@ def main():
 
     st.sidebar.markdown("---")
 
-    history = load_generation_history()
+    # Load history from database
+    history = get_all_generations()
     render_history_sidebar(history)
 
     # Main Content
     if st.session_state.final_state:
-        # FINAL: Show tailored resume WITH suggestions
+        # FINAL: Show tailored resume WITHOUT score comparison
         final_state = st.session_state.final_state
         
         st.success("✅ Your Tailored Resume is Ready!")
-        
-        # Show before/after comparison
-        col1, col2 = st.columns(2)
-        with col1:
-            st.metric("Original Score", f"{st.session_state.initial_critique.get('overall_score', 0):.1f}/10")
-        with col2:
-            st.metric("New Score", f"{final_state['critique'].get('overall_score', 0):.1f}/10", 
-                     delta=f"+{final_state['critique'].get('overall_score', 0) - st.session_state.initial_critique.get('overall_score', 0):.1f}")
-        
-        st.markdown("---")
         
         # Show suggestions in collapsible expander
         if st.session_state.suggestions:
@@ -309,6 +307,7 @@ def main():
                 st.session_state.current_state = None
                 st.session_state.evaluation_done = False
                 st.session_state.initial_critique = None
+                st.session_state.current_generation_id = None
                 st.rerun()
     
     elif st.session_state.evaluation_done:
@@ -371,7 +370,7 @@ def main():
         col1, col2, col3 = st.columns([2, 2, 2])
         with col2:
             evaluate_button = st.button(
-                "📊 Evaluate Resume vs Job",
+                "📊 Evaluate Resume vs Job Description",
                 type="primary",
                 use_container_width=True,
                 disabled=st.session_state.workflow_running
@@ -389,12 +388,12 @@ def main():
             except Exception as e:
                 render_error_message(f"Error: {str(e)}")
 
-    # Footer
+    # Footer - Powered by Qubrid AI
     st.markdown("---")
     st.markdown(
         """
         <div style="text-align: center; padding: 10px; opacity: 0.6;">
-            <p style="font-size: 0.9em;">Powered by Mistral 7B • Built with LangGraph & Streamlit</p>
+            <p style="font-size: 0.9em;">Powered by Qubrid AI</p>
         </div>
         """,
         unsafe_allow_html=True

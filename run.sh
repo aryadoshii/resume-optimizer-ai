@@ -1,10 +1,10 @@
 #!/bin/bash
 
-# Career-Sync-AI Startup Script
+# Resume-Optimizer-AI Startup Script
 
 set -e
 
-echo "🚀 Starting Career-Sync-AI..."
+echo "🚀 Starting Resume-Optimizer-AI..."
 echo ""
 
 # Check if .env exists

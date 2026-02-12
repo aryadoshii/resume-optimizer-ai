@@ -4,6 +4,7 @@ import streamlit as st
 from datetime import datetime
 from typing import Dict, Any, Optional
 import os
+import json
 
 
 def render_header(theme: str = "dark"):
@@ -11,9 +12,9 @@ def render_header(theme: str = "dark"):
     st.markdown(
         f"""
         <div style="text-align: center; padding: 20px 0;">
-            <h1 style="font-size: 3em; margin-bottom: 0;">Career-Sync-AI</h1>
+            <h1 style="font-size: 3em; margin-bottom: 0;">Resume-Optimizer-AI</h1>
             <p style="font-size: 1.2em; {'color: #b0b0b0' if theme == 'dark' else 'color: #6b7280'}; margin-top: 10px;">
-                AI-Powered Resume Tailoring with Mistral 7B
+                AI-Powered Resume Optimization with Mistral 7B
             </p>
         </div>
         """,
@@ -75,52 +76,14 @@ def render_file_uploader(
     return uploaded_file
 
 
-def render_progress_tracker(
-    current_node: str,
-    progress: float,
-    status: str = "running"
-):
-    """
-    Render live progress tracker for workflow execution.
-
-    Args:
-        current_node: Name of currently executing node
-        progress: Progress percentage (0-100)
-        status: Status message
-    """
-    # Node display names
-    node_names = {
-        "analyze_jd": "📊 Analyzing Job Description",
-        "draft": "✍️ Drafting Tailored Resume",
-        "critique": "🔍 Evaluating Resume Quality",
-        "finalize": "✅ Finalizing Resume"
-    }
-
-    # Progress bar
-    st.progress(progress / 100)
-
-    # Current step with LLM indicator
-    display_name = node_names.get(current_node, current_node)
-    
-    if current_node in ["analyze_jd", "draft", "critique"]:
-        st.info(f"**Current Step:** {display_name}\n\n🤖 *Mistral 7B is processing...*")
-    else:
-        st.info(f"**Current Step:** {display_name}")
-
-    # Status message
-    if status:
-        st.caption(status)
-
-
 def render_critique_feedback(critique: Dict[str, Any]):
     """
-    Render critique feedback in a formatted way.
+    Render critique feedback in a formatted way with colored cards.
 
     Args:
         critique: Critique dictionary with scores and feedback
     """
     st.markdown("### 📋 Resume Evaluation")
-    st.info("💡 **What you're seeing:** AI evaluation scores for your NEW tailored resume")
 
     # Overall score with color coding
     overall_score = critique.get("overall_score", 0)
@@ -128,25 +91,42 @@ def render_critique_feedback(critique: Dict[str, Any]):
 
     st.markdown(
         f"""
-        <div style="text-align: center; padding: 20px; background-color: rgba(139, 92, 246, 0.1); 
-                    border-radius: 8px; margin-bottom: 20px;">
-            <h2 style="color: {score_color}; margin: 0;">{overall_score:.1f}/10</h2>
-            <p style="margin: 5px 0 0 0;">Overall Score</p>
+        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%); 
+                    border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(139, 92, 246, 0.3);">
+            <h2 style="color: {score_color}; margin: 0; font-size: 3em;">{overall_score:.1f}/10</h2>
+            <p style="margin: 5px 0 0 0; opacity: 0.8;">Overall Score</p>
         </div>
         """,
         unsafe_allow_html=True
     )
 
-    # Individual scores
+    # Individual scores in colored cards
     col1, col2 = st.columns(2)
 
-    with col1:
-        st.metric("Keyword Optimization", f"{critique.get('keyword_score', 0)}/10")
-        st.metric("Experience Relevance", f"{critique.get('experience_score', 0)}/10")
+    scores = [
+        ("Keyword Optimization", critique.get('keyword_score', 0)),
+        ("Experience Relevance", critique.get('experience_score', 0)),
+        ("ATS-Friendliness", critique.get('ats_score', 0)),
+        ("Professional Formatting", critique.get('formatting_score', 0))
+    ]
 
-    with col2:
-        st.metric("ATS-Friendliness", f"{critique.get('ats_score', 0)}/10")
-        st.metric("Professional Formatting", f"{critique.get('formatting_score', 0)}/10")
+    colors = ["#8B5CF6", "#EC4899", "#3B82F6", "#10B981"]
+
+    for i, (label, score) in enumerate(scores):
+        col = col1 if i < 2 else col2
+        color = colors[i]
+        
+        with col:
+            st.markdown(
+                f"""
+                <div style="padding: 16px; background-color: rgba(139, 92, 246, 0.05); 
+                            border-left: 4px solid {color}; border-radius: 8px; margin-bottom: 12px;">
+                    <p style="margin: 0; opacity: 0.7; font-size: 0.9em;">{label}</p>
+                    <h3 style="margin: 5px 0 0 0; color: {color};">{score}/10</h3>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     # Feedback
     if critique.get("feedback"):
@@ -224,10 +204,10 @@ def render_download_buttons(
 
 def render_history_sidebar(history: list):
     """
-    Render previous generations in sidebar.
+    Render previous generations in sidebar with clickable chat names.
 
     Args:
-        history: List of generation entries
+        history: List of generation entries from database
     """
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📚 Previous Generations")
@@ -236,46 +216,90 @@ def render_history_sidebar(history: list):
         st.sidebar.info("No previous generations yet.")
         return
 
-    for i, entry in enumerate(history[:5]):  # Show last 5
+    for entry in history[:10]:  # Show last 10
         timestamp = datetime.fromisoformat(entry["timestamp"])
+        
+        # Format: "Feb 12, 1:17 PM"
         formatted_time = timestamp.strftime("%b %d, %I:%M %p")
-
+        
+        job_title = entry.get('job_title', 'Unknown')
+        company = entry.get('company', 'N/A')
+        score = entry.get('final_score', 0)
+        
+        # Clickable expander with details
         with st.sidebar.expander(
-            f"{entry.get('job_title', 'Unknown')} - {formatted_time}",
+            f"**{job_title}** • {formatted_time}",
             expanded=False
         ):
-            st.write(f"**Company:** {entry.get('company', 'N/A')}")
-            st.write(f"**Score:** {entry.get('final_score', 0):.1f}/10")
-            st.write(f"**Iterations:** {entry.get('iterations', 0)}")
+            st.markdown(f"🏢 **{company}**")
+            st.markdown(f"⭐ **Score:** {score:.1f}/10")
+            st.markdown(f"🔄 **Iterations:** {entry.get('iterations', 0)}")
+            
+            st.markdown("---")
+            
+            # Clickable button to restore
+            if st.button("📂 Open This Chat", key=f"open_{entry['id']}", use_container_width=True):
+                restore_generation(entry['id'])
 
-            # Download links
-            output_files = entry.get("output_files", {})
+            # Download buttons
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if entry.get("markdown_path"):
+                    try:
+                        with open(entry["markdown_path"], "r") as f:
+                            md_content = f.read()
+                        st.download_button(
+                            "📝 MD",
+                            data=md_content,
+                            file_name=f"resume_{entry['id']}.md",
+                            key=f"md_{entry['id']}",
+                            use_container_width=True
+                        )
+                    except:
+                        pass
 
-            if output_files.get("markdown"):
-                try:
-                    with open(output_files["markdown"], "r") as f:
-                        md_content = f.read()
-                    st.download_button(
-                        "📝 MD",
-                        data=md_content,
-                        file_name=f"resume_{i}.md",
-                        key=f"md_{i}"
-                    )
-                except:
-                    pass
+            with col2:
+                if entry.get("pdf_path"):
+                    try:
+                        with open(entry["pdf_path"], "rb") as f:
+                            pdf_content = f.read()
+                        st.download_button(
+                            "📄 PDF",
+                            data=pdf_content,
+                            file_name=f"resume_{entry['id']}.pdf",
+                            key=f"pdf_{entry['id']}",
+                            use_container_width=True
+                        )
+                    except:
+                        pass
 
-            if output_files.get("pdf"):
-                try:
-                    with open(output_files["pdf"], "rb") as f:
-                        pdf_content = f.read()
-                    st.download_button(
-                        "📄 PDF",
-                        data=pdf_content,
-                        file_name=f"resume_{i}.pdf",
-                        key=f"pdf_{i}"
-                    )
-                except:
-                    pass
+
+def restore_generation(generation_id: int):
+    """Restore a previous generation to current state."""
+    from backend.database import get_generation_by_id
+    
+    gen = get_generation_by_id(generation_id)
+    if not gen:
+        st.error("Generation not found")
+        return
+    
+    # Restore to session state
+    st.session_state.final_state = {
+        "original_resume": gen["original_resume"],
+        "job_description": gen["job_description"],
+        "jd_analysis": json.loads(gen["jd_analysis"]),
+        "final_resume": gen["final_resume"],
+        "critique": json.loads(gen["final_critique"]),
+        "iteration": gen["iterations"],
+        "output_pdf_path": gen["pdf_path"]
+    }
+    
+    st.session_state.initial_critique = json.loads(gen["initial_critique"])
+    st.session_state.suggestions = json.loads(gen["suggestions"])
+    st.session_state.evaluation_done = False
+    
+    st.rerun()
 
 
 def render_error_message(error: str):

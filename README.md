@@ -1,52 +1,13 @@
-![Qubrid AI Banner](https://via.placeholder.com/1200x300/8B5CF6/FFFFFF?text=Resume-Optimizer-AI+%7C+Powered+by+Qubrid+AI)
+![Qubrid AI Banner](frontend/assets/qubrid_banner.png)
 
 # Resume-Optimizer-AI 🚀
 
-> Transform your resume with AI. Get scored, receive personalized suggestions, and generate ATS-optimized resumes tailored to any job—all in seconds.
+> Transform your resume with Resume-Optimizer-AI . Get scored, receive personalized suggestions, and generate ATS optimized resumes tailored to any job all in seconds.
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-red.svg)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
----
-
-## 📸 Screenshots
-
-### 🎯 Upload & Evaluate
-![Upload Resume](frontend/assets/1-upload.png)
-*Upload your resume and job description, then get instant AI-powered evaluation with progress tracking.*
-
----
-
-### 📊 AI Scoring Dashboard
-![Resume Evaluation](frontend/assets/2-scoring.png)
-*Receive detailed scores across 4 key metrics: Keyword Optimization, Experience Relevance, ATS-Friendliness, and Professional Formatting.*
-
----
-
-### 💡 Personalized Suggestions
-![Improvement Suggestions](frontend/assets/3-suggestions.png)
-*Get actionable, job-specific recommendations organized by category—review before generating your optimized resume.*
-
----
-
-### 📄 Optimized Resume Preview
-![Generated Resume](frontend/assets/4-resume.png)
-*Preview your AI-tailored resume with all suggestions applied, ready to download as Markdown or PDF.*
-
----
-
-### 📚 History & Restore
-![Previous Generations](frontend/assets/5-history.png)
-*Access all past resume generations with scores and iteration counts. Click any chat to restore and review.*
-
----
-
-### 🌓 Dark Mode Support
-![Dark Theme](frontend/assets/6-dark-mode.png)
-*Beautiful dark and light themes with full accessibility and professional color-coded scoring.*
-
----
 
 ## ✨ Features
 
@@ -59,35 +20,55 @@
 - **⚡ Lightning Fast** - Powered by Mistral 7B via Qubrid API
 
 ---
+## 📸 UI Screenshots
 
-## 🚀 Quick Start
+### 🎯 Upload & Evaluate
+<img src="frontend/assets/1-upload.png" alt="Upload Resume" width="1000"/>
 
-### Prerequisites
+*Upload your resume and job description, then get instant AI-powered evaluation with progress tracking.*
 
-- Python 3.12+
-- [Qubrid API key](https://qubrid.com) (free tier available)
-- UV package manager (recommended) or pip
+---
 
-### Installation
-```bash
-# 1. Clone the repository
-git clone https://github.com/aryadoshii-qubrid/resume-optimizer-ai.git
-cd resume-optimizer-ai
+### 📊 AI Scoring Dashboard
+<img src="frontend/assets/2-scoring.png" alt="Resume Evaluation" width="1000"/>
 
-# 2. Set up your API key
-cp .env.example .env
-nano .env  # Add your QUBRID_API_KEY
+*Receive detailed scores across 4 key metrics: Keyword Optimization, Experience Relevance, ATS-Friendliness, and Professional Formatting.*
 
-# 3. Install dependencies (UV recommended)
-curl -LsSf https://astral.sh/uv/install.sh | sh
-uv pip install -r requirements.txt
+---
 
-# 4. Run the app
-./run.sh
-# OR: streamlit run frontend/app.py
-```
+### 💡 Personalized Suggestions
+<img src="frontend/assets/3-suggestions.png" alt="Improvement Suggestions" width="1000"/>
 
-Visit **http://localhost:8501** and start optimizing! 🎉
+*Get actionable, job-specific recommendations organized by category—review before generating your optimized resume.*
+
+---
+
+### 📄 Optimized Resume Preview
+<img src="frontend/assets/4-resume.png" alt="Generated Resume" width="1000"/>
+
+*Preview your AI-tailored resume with all suggestions applied, ready to download as Markdown or PDF.*
+
+---
+
+### 📚 History & Restore
+<img src="frontend/assets/5-history.png" alt="Previous Generations" width="600"/>
+
+*Access all past resume generations with scores and iteration counts. Click any chat to restore and review.*
+
+---
+
+### 🌓 Dark Mode Support
+<img src="frontend/assets/6-dark-mode.png" alt="Dark Theme" width="1000"/>
+
+*Beautiful dark and light themes with full accessibility and professional color-coded scoring.*
+
+---
+
+## 🏗️ System Architecture
+
+<img src="frontend/assets/architecture.png" alt="System Architecture Diagram" width="1000"/>
+
+*Resume-Optimizer-AI follows a streamlined 5-stage pipeline with persistent storage, ensuring every resume generation is tracked and restorable.*
 
 ---
 
@@ -146,36 +127,47 @@ Each scored 0-10, averaged for overall score.
 
 ---
 
-## 🤝 Contributing
+## 🚀 Quick Start
 
-We welcome contributions! Feel free to:
-- 🐛 Report bugs
-- 💡 Suggest features
-- 🔧 Submit pull requests
+### Prerequisites
+
+- Python 3.12+
+- [Qubrid API key](https://qubrid.com) (free tier available)
+- UV package manager (recommended) or pip
+
+### Installation
+```bash
+# 1. Clone the repository
+git clone https://github.com/aryadoshii-qubrid/resume-optimizer-ai.git
+cd resume-optimizer-ai
+
+# 2. Set up your API key
+cp .env.example .env
+nano .env  # Add your QUBRID_API_KEY
+
+# 3. Install dependencies (UV recommended)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv pip install -r requirements.txt
+
+# 4. Run the app
+./run.sh
+# OR: uv run streamlit run frontend/app.py   
+```
+---
+
+## 📚 Learn More About Qubrid AI
+
+Explore more applications and tutorials built on the Qubrid AI platform:
+
+### 📖 Resources
+
+- **[Qubrid Cookbook](https://github.com/QubridAI-Inc/qubrid-cookbook)** - Collection of example applications and integration guides
+- **[Video Tutorials](https://youtube.com/playlist?list=PLoaE-lmLecgPoYuSa2BsmlJ8isKB5KFtq&si=bbR6pVatRWVtj9e0)** - Step-by-step tutorials and demos
+- **[Qubrid Platform](https://platform.qubrid.com)** - Get your API key and explore documentation
 
 ---
 
-## 📝 License
 
-MIT License - see [LICENSE](LICENSE) for details.
-
----
-
-## 🙏 Powered By
-
-- [Qubrid AI](https://qubrid.com) - AI infrastructure
-- [Mistral AI](https://mistral.ai/) - LLM model
-- [Streamlit](https://streamlit.io/) - UI framework
-- [LangGraph](https://github.com/langchain-ai/langgraph) - Workflow orchestration
-
----
-
-## 📧 Support
-
-- 📖 [Documentation](https://github.com/aryadoshii-qubrid/resume-optimizer-ai)
-- 🐛 [Report Issues](https://github.com/aryadoshii-qubrid/resume-optimizer-ai/issues)
-- 💬 [Qubrid Support](https://qubrid.com/support)
-
----
-
-**Made with ❤️ by the Qubrid AI Team**
+<p align="center">
+  <em>Made with ❤️ by Qubrid AI</em>
+</p>

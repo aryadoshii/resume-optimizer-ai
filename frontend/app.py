@@ -1,4 +1,4 @@
-"""Main Streamlit application for Career-Sync-AI."""
+"""Main Streamlit application for Resume-Optimizer-AI."""
 
 import sys
 from pathlib import Path
@@ -9,21 +9,13 @@ sys.path.insert(0, str(project_root))
 
 import streamlit as st
 from datetime import datetime
-import tempfile
-import os
 
-from backend import create_resume_workflow
 from backend.state import ResumeState
-from backend.utils import (
-    parse_pdf,
-    parse_text_file,
-    save_markdown,
-    convert_markdown_to_pdf,
-    validate_file_type
-)
-from backend.nodes import call_llm_with_retry, draft_tailored_resume, critique_resume, finalize_resume, analyze_job_description
+from backend.utils import parse_pdf, parse_text_file, save_markdown, convert_markdown_to_pdf, validate_file_type
+from backend.nodes import analyze_job_description, critique_resume, draft_suggestions_only, draft_tailored_resume, finalize_resume
 from backend.database import init_database, save_generation, get_all_generations
 from frontend.styles import get_theme_css
+from PIL import Image
 from frontend.components import (
     render_header,
     render_theme_toggle,
@@ -34,21 +26,25 @@ from frontend.components import (
     render_history_sidebar,
     render_error_message
 )
-from config.settings import settings, INPUTS_DIR
+
+# Data directories
+DATA_DIR = Path(__file__).parent.parent / "data"
+INPUTS_DIR = DATA_DIR / "inputs"
+OUTPUTS_DIR = DATA_DIR / "outputs"
 
 
-# Page configuration
+# Load logo
+logo = Image.open("frontend/assets/qubrid_logo.png")
+
 st.set_page_config(
     page_title="Resume-Optimizer-AI",
-    page_icon="📄",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_icon=logo,  # Use actual logo
+    layout="wide"
 )
 
 
 def initialize_session_state():
     """Initialize session state variables."""
-    # Initialize database
     init_database()
     
     if "workflow_running" not in st.session_state:
@@ -119,11 +115,10 @@ def evaluate_resume(resume_content: str, resume_filename: str, jd_content: str, 
         "job_description": jd_content,
         "resume_filename": resume_filename,
         "jd_source": jd_source,
-        "draft_resume": resume_content,  # Use original for initial critique
+        "draft_resume": resume_content,
         "iteration": 0,
         "metadata": {
-            "start_time": datetime.now().isoformat(),
-            "model": settings.model_name
+            "start_time": datetime.now().isoformat()
         }
     }
     
@@ -148,7 +143,6 @@ def evaluate_resume(resume_content: str, resume_filename: str, jd_content: str, 
     status_text.info("💡 Generating improvement suggestions...")
     progress_bar.progress(75)
     
-    from backend.graph import draft_suggestions_only
     suggestions_result = draft_suggestions_only(initial_state)
     initial_state.update(suggestions_result)
     
@@ -156,7 +150,7 @@ def evaluate_resume(resume_content: str, resume_filename: str, jd_content: str, 
     status_text.empty()
     progress_bar.empty()
     
-    # Store results - save initial critique separately
+    # Store results
     st.session_state.current_state = initial_state
     st.session_state.initial_critique = initial_state.get("critique")
     st.session_state.suggestions = initial_state.get("suggestions")
@@ -202,7 +196,7 @@ def create_final_resume():
     
     current_state["output_pdf_path"] = str(pdf_path)
     
-    # Save to database with initial critique
+    # Save to database
     current_state["initial_critique"] = st.session_state.initial_critique
     generation_id = save_generation(current_state, {
         "markdown": str(markdown_path),
@@ -264,18 +258,18 @@ def main():
 
     st.sidebar.markdown("---")
 
-    # Load history from database
+    # Load history
     history = get_all_generations()
     render_history_sidebar(history)
 
     # Main Content
     if st.session_state.final_state:
-        # FINAL: Show tailored resume WITHOUT score comparison
+        # FINAL: Show tailored resume
         final_state = st.session_state.final_state
         
         st.success("✅ Your Tailored Resume is Ready!")
         
-        # Show suggestions in collapsible expander
+        # Show suggestions
         if st.session_state.suggestions:
             with st.expander("💡 View Improvement Suggestions Applied", expanded=False):
                 suggestions = st.session_state.suggestions
@@ -311,17 +305,15 @@ def main():
                 st.rerun()
     
     elif st.session_state.evaluation_done:
-        # STEP 2: Show evaluation + suggestions + generate button
+        # STEP 2: Show evaluation + suggestions
         
         st.success("✅ Evaluation Complete!")
         
-        # Show initial evaluation
         if st.session_state.initial_critique:
             render_critique_feedback(st.session_state.initial_critique)
         
         st.markdown("---")
         
-        # Show suggestions
         if st.session_state.suggestions:
             st.markdown("### 💡 Improvement Suggestions")
             st.caption("These will be applied to your tailored resume")
@@ -361,7 +353,7 @@ def main():
 ✅ Keyword matching  
 ✅ Professional formatting  
 
-**Ready?** Upload files in the sidebar →
+**Ready?** Upload files to get started!
 """)
         
         st.markdown("<br>", unsafe_allow_html=True)
@@ -370,7 +362,7 @@ def main():
         col1, col2, col3 = st.columns([2, 2, 2])
         with col2:
             evaluate_button = st.button(
-                "📊 Evaluate Resume vs Job Description",
+                "📊 Evaluate Resume vs Job",
                 type="primary",
                 use_container_width=True,
                 disabled=st.session_state.workflow_running
@@ -388,7 +380,7 @@ def main():
             except Exception as e:
                 render_error_message(f"Error: {str(e)}")
 
-    # Footer - Powered by Qubrid AI
+    # Footer
     st.markdown("---")
     st.markdown(
         """

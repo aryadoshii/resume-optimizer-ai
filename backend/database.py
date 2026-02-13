@@ -1,17 +1,18 @@
-"""SQLite database for storing resume generation history with full state."""
+"""SQLite database operations for resume history."""
 
 import sqlite3
 import json
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from config.settings import DATA_DIR
 
+# Database path
+DATA_DIR = Path(__file__).parent.parent / "data"
 DB_PATH = DATA_DIR / "career_sync.db"
 
 
 def init_database():
-    """Initialize SQLite database with schema."""
+    """Initialize database schema."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
@@ -36,22 +37,39 @@ def init_database():
         )
     """)
     
+    # Index for fast queries
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_timestamp 
+        ON generations(timestamp DESC)
+    """)
+    
     conn.commit()
     conn.close()
 
 
 def save_generation(state: Dict[str, Any], output_paths: Dict[str, str]) -> int:
     """
-    Save complete generation state to database.
+    Save generation to database.
     
+    Args:
+        state: Resume state dictionary
+        output_paths: Dict with 'markdown' and 'pdf' keys
+        
     Returns:
-        generation_id: ID of saved generation
+        generation_id
     """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
+    # Extract data with safe defaults
     jd_analysis = state.get("jd_analysis", {})
+    initial_critique = state.get("initial_critique", {})
     final_critique = state.get("critique", {})
+    suggestions = state.get("suggestions", [])
+    
+    # Ensure paths are strings, not None
+    markdown_path = output_paths.get("markdown") or ""
+    pdf_path = output_paths.get("pdf") or ""
     
     cursor.execute("""
         INSERT INTO generations (
@@ -66,14 +84,14 @@ def save_generation(state: Dict[str, Any], output_paths: Dict[str, str]) -> int:
         state.get("original_resume", ""),
         state.get("job_description", ""),
         json.dumps(jd_analysis),
-        json.dumps(state.get("initial_critique", {})),
-        json.dumps(state.get("suggestions", [])),
+        json.dumps(initial_critique),
+        json.dumps(suggestions),
         state.get("final_resume", ""),
         json.dumps(final_critique),
         state.get("iteration", 0),
         final_critique.get("overall_score", 0),
-        output_paths.get("markdown", ""),
-        output_paths.get("pdf", ""),
+        str(markdown_path),
+        str(pdf_path),
         json.dumps(state.get("metadata", {}))
     ))
     
@@ -85,7 +103,12 @@ def save_generation(state: Dict[str, Any], output_paths: Dict[str, str]) -> int:
 
 
 def get_all_generations() -> List[Dict[str, Any]]:
-    """Get all generations ordered by timestamp desc."""
+    """
+    Get all generations ordered by timestamp (newest first).
+    
+    Returns:
+        List of generation dictionaries
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()
@@ -102,7 +125,15 @@ def get_all_generations() -> List[Dict[str, Any]]:
 
 
 def get_generation_by_id(generation_id: int) -> Optional[Dict[str, Any]]:
-    """Get specific generation by ID."""
+    """
+    Get specific generation by ID.
+    
+    Args:
+        generation_id: Database ID
+        
+    Returns:
+        Generation dictionary or None
+    """
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     cursor = conn.cursor()

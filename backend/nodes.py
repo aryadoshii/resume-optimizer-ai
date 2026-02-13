@@ -1,280 +1,294 @@
-"""LangGraph nodes for resume tailoring workflow."""
+"""AI processing nodes for resume optimization workflow."""
 
 import json
+import re
 import time
-from typing import Dict, Any, Generator
+import os
+from typing import Dict, Any, List
 from openai import OpenAI
+from dotenv import load_dotenv
 
-from config import settings, ANALYZE_JD_PROMPT, DRAFT_RESUME_PROMPT, CRITIQUE_PROMPT
-from .state import ResumeState
-from .utils import extract_json_from_text
-
-
-# Initialize OpenAI client for Qubrid
-client = OpenAI(
-    base_url=settings.qubrid_base_url,
-    api_key=settings.qubrid_api_key
+from backend.state import ResumeState
+from backend.prompts import (
+    JD_ANALYSIS_PROMPT,
+    CRITIQUE_PROMPT,
+    SUGGESTIONS_PROMPT,
+    TAILORING_PROMPT,
+    FINALIZATION_PROMPT
 )
+
+# Load environment variables
+load_dotenv()
+
+# API Configuration
+QUBRID_API_KEY = os.getenv("QUBRID_API_KEY", "")
+QUBRID_BASE_URL = os.getenv("QUBRID_BASE_URL", "https://platform.qubrid.com/v1")
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.3"
+MAX_TOKENS = 8192
+
+
+# ===== HELPER FUNCTIONS =====
 
 
 def call_llm_with_retry(
-    messages: list,
+    messages: List[Dict[str, str]],
     temperature: float = 0.7,
-    stream: bool = False,
-    max_retries: int = None
+    max_retries: int = 3
 ) -> str:
     """
-    Call LLM with exponential backoff retry logic.
-
+    Call Qubrid API with retry logic.
+    
     Args:
-        messages: Chat messages
-        temperature: Sampling temperature
-        stream: Whether to stream response
-        max_retries: Maximum retry attempts (uses settings default if None)
-
+        messages: List of message dicts with 'role' and 'content'
+        temperature: Sampling temperature (0=deterministic, 1=creative)
+        max_retries: Maximum number of retry attempts
+        
     Returns:
-        LLM response text
-
-    Raises:
-        RuntimeError: If all retries fail
+        Response text from the model
     """
-    if max_retries is None:
-        max_retries = settings.max_retries
-
-    last_error = None
-
+    client = OpenAI(
+        api_key=QUBRID_API_KEY,
+        base_url=QUBRID_BASE_URL
+    )
+    
     for attempt in range(max_retries):
         try:
-            if stream:
-                response_text = ""
-                stream_response = client.chat.completions.create(
-                    model=settings.model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=settings.max_tokens,
-                    stream=True
-                )
-
-                for chunk in stream_response:
-                    if chunk.choices[0].delta.content:
-                        response_text += chunk.choices[0].delta.content
-
-                return response_text
-
-            else:
-                response = client.chat.completions.create(
-                    model=settings.model_name,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=settings.max_tokens
-                )
-                return response.choices[0].message.content
-
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=MAX_TOKENS,
+                timeout=60
+            )
+            return response.choices[0].message.content
+            
         except Exception as e:
-            last_error = e
             if attempt < max_retries - 1:
-                delay = settings.retry_delay * (2 ** attempt)
-                time.sleep(delay)
+                wait_time = 2 ** attempt
+                time.sleep(wait_time)
                 continue
-            break
+            else:
+                raise Exception(f"API call failed: {str(e)}")
 
-    raise RuntimeError(f"LLM call failed after {max_retries} attempts: {last_error}")
+
+def extract_json_from_text(text: str) -> Dict[str, Any]:
+    """Extract JSON from text that might have markdown code blocks."""
+    # Try to find JSON in code blocks
+    match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text, re.DOTALL)
+    if match:
+        return json.loads(match.group(1))
+    
+    # Try to find raw JSON
+    match = re.search(r'\{.*\}', text, re.DOTALL)
+    if match:
+        return json.loads(match.group(0))
+    
+    raise ValueError("No valid JSON found in response")
 
 
-def analyze_job_description(state: ResumeState) -> Dict[str, Any]:
+def analyze_job_description(state: ResumeState) -> ResumeState:
     """
-    Analyze job description to extract key requirements.
-
-    Args:
-        state: Current workflow state
-
-    Returns:
-        Updated state with jd_analysis
+    Extract structured information from job description.
+    
+    Returns: Updated state with jd_analysis
     """
-    prompt = ANALYZE_JD_PROMPT.format(
-        job_description=state["job_description"]
-    )
-
-    messages = [
-        {"role": "system", "content": "You are an expert recruiter analyzing job descriptions."},
-        {"role": "user", "content": prompt}
-    ]
-
     try:
-        response = call_llm_with_retry(
-            messages=messages,
-            temperature=settings.temperature_analysis
+        prompt = JD_ANALYSIS_PROMPT.format(
+            job_description=state["job_description"]
         )
-
-        # Extract JSON from response
-        jd_analysis = extract_json_from_text(response)
-
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_llm_with_retry(messages, temperature=0.3)
+        
+        # Parse JSON response
+        try:
+            jd_analysis = json.loads(response)
+        except json.JSONDecodeError:
+            jd_analysis = extract_json_from_text(response)
+        
+        return {**state, "jd_analysis": jd_analysis}
+        
+    except Exception as e:
+        # Return state with error and fallback values
         return {
-            "jd_analysis": jd_analysis,
-            "iteration": 0
+            **state,
+            "jd_analysis": {
+                "job_title": "Unknown",
+                "company": "Unknown",
+                "required_skills": [],
+                "key_responsibilities": [],
+                "ats_keywords": []
+            },
+            "error": f"JD Analysis failed: {str(e)}"
         }
 
-    except Exception as e:
-        return {"error": f"Job description analysis failed: {str(e)}"}
 
-
-def draft_tailored_resume(state: ResumeState) -> Dict[str, Any]:
+def critique_resume(state: ResumeState) -> ResumeState:
     """
-    Generate tailored resume based on job requirements.
-
-    Args:
-        state: Current workflow state
-
-    Returns:
-        Updated state with draft_resume
+    Score resume against job requirements.
+    
+    Returns: Updated state with critique scores
     """
-    # Format job analysis as readable text
-    jd_analysis_text = json.dumps(state["jd_analysis"], indent=2)
-
-    prompt = DRAFT_RESUME_PROMPT.format(
-        original_resume=state["original_resume"],
-        jd_analysis=jd_analysis_text
-    )
-
-    messages = [
-        {"role": "system", "content": "You are an expert resume writer specializing in ATS optimization."},
-        {"role": "user", "content": prompt}
-    ]
-
     try:
-        draft = call_llm_with_retry(
-            messages=messages,
-            temperature=settings.temperature_generation
+        # Determine which resume to score
+        resume_to_score = state.get("draft_resume") or state["original_resume"]
+        
+        # Get JD analysis
+        jd_analysis = state.get("jd_analysis", {})
+        
+        prompt = CRITIQUE_PROMPT.format(
+            resume=resume_to_score,
+            job_requirements=json.dumps(jd_analysis, indent=2)
         )
-
-        # Clean up response (remove markdown code blocks if present)
-        draft = draft.strip()
-        if draft.startswith("```markdown"):
-            draft = draft[len("```markdown"):].strip()
-        if draft.startswith("```"):
-            draft = draft[3:].strip()
-        if draft.endswith("```"):
-            draft = draft[:-3].strip()
-
-        return {"draft_resume": draft}
-
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_llm_with_retry(messages, temperature=0.5)
+        
+        # Parse JSON response
+        try:
+            critique = json.loads(response)
+        except json.JSONDecodeError:
+            critique = extract_json_from_text(response)
+        
+        # Add approval flag
+        overall_score = critique.get("overall_score", 0)
+        critique["approved"] = overall_score >= 8.5
+        
+        return {**state, "critique": critique}
+        
     except Exception as e:
-        return {"error": f"Resume drafting failed: {str(e)}"}
-
-
-def critique_resume(state: ResumeState) -> Dict[str, Any]:
-    """
-    Evaluate the drafted resume and provide critique.
-
-    Args:
-        state: Current workflow state
-
-    Returns:
-        Updated state with critique and incremented iteration
-    """
-    jd_analysis_text = json.dumps(state["jd_analysis"], indent=2)
-
-    prompt = CRITIQUE_PROMPT.format(
-        draft_resume=state["draft_resume"],
-        jd_analysis=jd_analysis_text,
-        original_resume=state["original_resume"]
-    )
-
-    messages = [
-        {"role": "system", "content": "You are a senior recruiter evaluating resumes."},
-        {"role": "user", "content": prompt}
-    ]
-
-    try:
-        response = call_llm_with_retry(
-            messages=messages,
-            temperature=settings.temperature_analysis
-        )
-
-        # Extract JSON critique
-        critique = extract_json_from_text(response)
-
+        # Return state with error and fallback critique
         return {
-            "critique": critique,
-            "iteration": state.get("iteration", 0) + 1
+            **state,
+            "critique": {
+                "overall_score": 0,
+                "keyword_score": 0,
+                "experience_score": 0,
+                "ats_score": 0,
+                "formatting_score": 0,
+                "feedback": "Critique failed",
+                "improvements_needed": [],
+                "approved": False
+            },
+            "error": f"Critique failed: {str(e)}"
         }
 
-    except Exception as e:
-        return {"error": f"Resume critique failed: {str(e)}"}
 
-
-def finalize_resume(state: ResumeState) -> Dict[str, Any]:
+def draft_suggestions_only(state: ResumeState) -> ResumeState:
     """
-    Finalize the approved resume.
-
-    Args:
-        state: Current workflow state
-
-    Returns:
-        Updated state with final_resume
+    Generate improvement suggestions without rewriting resume.
+    
+    Returns: Updated state with suggestions list
     """
-    return {
-        "final_resume": state["draft_resume"],
-        "output_markdown": state["draft_resume"]
-    }
-
-
-def should_continue_iteration(state: ResumeState) -> str:
-    """
-    Decision function to determine if another iteration is needed.
-
-    Args:
-        state: Current workflow state
-
-    Returns:
-        "finalize" if approved or max iterations reached, "draft" to iterate
-    """
-    # Check for errors
-    if state.get("error"):
-        return "finalize"
-
-    # Check if we have a critique
-    critique = state.get("critique", {})
-
-    # Check if approved
-    if critique.get("approved", False):
-        return "finalize"
-
-    # Check max iterations
-    if state.get("iteration", 0) >= settings.max_iterations:
-        return "finalize"
-
-    # Continue iterating
-    return "draft"
-
-
-# Streaming wrapper for UI updates
-def stream_node_execution(
-    node_func,
-    state: ResumeState,
-    node_name: str
-) -> Generator[Dict[str, Any], None, Dict[str, Any]]:
-    """
-    Wrapper to stream node execution progress to UI.
-
-    Args:
-        node_func: Node function to execute
-        state: Current state
-        node_name: Name of the node for logging
-
-    Yields:
-        Progress updates
-
-    Returns:
-        Updated state from node execution
-    """
-    yield {"status": "running", "node": node_name, "message": f"Starting {node_name}..."}
-
     try:
-        result = node_func(state)
-        yield {"status": "complete", "node": node_name, "message": f"Completed {node_name}"}
-        return result
-
+        jd_analysis = state.get("jd_analysis", {})
+        critique = state.get("critique", {})
+        
+        prompt = SUGGESTIONS_PROMPT.format(
+            original_resume=state["original_resume"],
+            job_requirements=json.dumps(jd_analysis, indent=2),
+            critique_scores=json.dumps(critique, indent=2)
+        )
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_llm_with_retry(messages, temperature=0.6)
+        
+        # Parse JSON response
+        try:
+            suggestions_data = json.loads(response)
+            suggestions = suggestions_data.get("suggestions", [])
+        except json.JSONDecodeError:
+            suggestions_data = extract_json_from_text(response)
+            suggestions = suggestions_data.get("suggestions", [])
+        
+        return {
+            **state,
+            "suggestions": suggestions,
+            "awaiting_approval": True
+        }
+        
     except Exception as e:
-        yield {"status": "error", "node": node_name, "message": str(e)}
-        return {"error": str(e)}
+        return {
+            **state,
+            "suggestions": [],
+            "awaiting_approval": True,
+            "error": f"Suggestions generation failed: {str(e)}"
+        }
+
+
+def draft_tailored_resume(state: ResumeState) -> ResumeState:
+    """
+    Rewrite resume to match job requirements.
+    
+    Returns: Updated state with draft_resume
+    """
+    try:
+        jd_analysis = state.get("jd_analysis", {})
+        suggestions = state.get("suggestions", [])
+        
+        # Format suggestions as text
+        suggestions_text = "\n".join([
+            f"- {s.get('category', 'General')}: {s.get('suggestion', '')}"
+            for s in suggestions
+        ])
+        
+        prompt = TAILORING_PROMPT.format(
+            original_resume=state["original_resume"],
+            job_requirements=json.dumps(jd_analysis, indent=2),
+            suggestions=suggestions_text,
+            iteration=state.get("iteration", 0)
+        )
+        
+        messages = [
+            {"role": "system", "content": "You are an expert resume writer."},
+            {"role": "user", "content": prompt}
+        ]
+        
+        response = call_llm_with_retry(messages, temperature=0.7)
+        
+        # Increment iteration
+        iteration = state.get("iteration", 0) + 1
+        
+        return {
+            **state,
+            "draft_resume": response,
+            "iteration": iteration
+        }
+        
+    except Exception as e:
+        return {
+            **state,
+            "draft_resume": state["original_resume"],
+            "error": f"Resume drafting failed: {str(e)}"
+        }
+
+
+def finalize_resume(state: ResumeState) -> ResumeState:
+    """
+    Polish and finalize the resume.
+    
+    Returns: Updated state with final_resume
+    """
+    try:
+        draft = state.get("draft_resume", state["original_resume"])
+        
+        prompt = FINALIZATION_PROMPT.format(resume=draft)
+        
+        messages = [{"role": "user", "content": prompt}]
+        response = call_llm_with_retry(messages, temperature=0.5)
+        
+        return {
+            **state,
+            "final_resume": response,
+            "output_markdown": response
+        }
+        
+    except Exception as e:
+        # Fallback to draft resume
+        draft = state.get("draft_resume", state["original_resume"])
+        return {
+            **state,
+            "final_resume": draft,
+            "output_markdown": draft,
+            "error": f"Finalization failed: {str(e)}"
+        }

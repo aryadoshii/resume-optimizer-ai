@@ -1,14 +1,13 @@
-"""Reusable UI components for Career-Sync-AI application."""
+"""Reusable UI components for Resume-Optimizer-AI."""
 
 import streamlit as st
 from datetime import datetime
-from typing import Dict, Any, Optional
 import os
 import json
 
 
 def render_header(theme: str = "dark"):
-    """Render application header with branding."""
+    """Render application header."""
     st.markdown(
         f"""
         <div style="text-align: center; padding: 20px 0;">
@@ -23,19 +22,12 @@ def render_header(theme: str = "dark"):
 
 
 def render_theme_toggle() -> str:
-    """
-    Render theme toggle and return current theme.
-
-    Returns:
-        Current theme: "dark" or "light"
-    """
+    """Render theme toggle and return current theme."""
     st.sidebar.markdown("### ⚙️ Settings")
 
-    # Initialize theme in session state - DEFAULT TO LIGHT
     if "theme" not in st.session_state:
         st.session_state.theme = "light"
 
-    # Theme toggle
     theme_options = {"🌙 Dark Mode": "dark", "☀️ Light Mode": "light"}
     selected = st.sidebar.radio(
         "Theme",
@@ -48,50 +40,23 @@ def render_theme_toggle() -> str:
     return st.session_state.theme
 
 
-def render_file_uploader(
-    label: str,
-    accepted_types: list,
-    key: str,
-    help_text: str = None
-) -> Optional[Any]:
-    """
-    Render a file uploader with validation.
-
-    Args:
-        label: Uploader label
-        accepted_types: List of accepted file extensions
-        key: Unique key for the uploader
-        help_text: Optional help text
-
-    Returns:
-        Uploaded file or None
-    """
-    uploaded_file = st.file_uploader(
-        label,
-        type=accepted_types,
-        key=key,
-        help=help_text
-    )
-
-    return uploaded_file
+def render_file_uploader(label: str, accepted_types: list, key: str, help_text: str = None):
+    """Render a file uploader."""
+    return st.file_uploader(label, type=accepted_types, key=key, help=help_text)
 
 
-def render_critique_feedback(critique: Dict[str, Any]):
-    """
-    Render critique feedback in a formatted way with colored cards.
-
-    Args:
-        critique: Critique dictionary with scores and feedback
-    """
+def render_critique_feedback(critique: dict):
+    """Render resume evaluation scores with colored cards."""
     st.markdown("### 📋 Resume Evaluation")
 
-    # Overall score with color coding
+    # Overall score
     overall_score = critique.get("overall_score", 0)
     score_color = "#10b981" if overall_score >= 8 else "#f59e0b" if overall_score >= 6 else "#ef4444"
 
     st.markdown(
         f"""
-        <div style="text-align: center; padding: 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1) 0%, rgba(236, 72, 153, 0.1) 100%); 
+        <div style="text-align: center; padding: 20px; 
+                    background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(236, 72, 153, 0.1)); 
                     border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(139, 92, 246, 0.3);">
             <h2 style="color: {score_color}; margin: 0; font-size: 3em;">{overall_score:.1f}/10</h2>
             <p style="margin: 5px 0 0 0; opacity: 0.8;">Overall Score</p>
@@ -114,29 +79,28 @@ def render_critique_feedback(critique: Dict[str, Any]):
 
     for i, (label, score) in enumerate(scores):
         col = col1 if i < 2 else col2
-        color = colors[i]
         
         with col:
             st.markdown(
                 f"""
                 <div style="padding: 16px; background-color: rgba(139, 92, 246, 0.05); 
-                            border-left: 4px solid {color}; border-radius: 8px; margin-bottom: 12px;">
+                            border-left: 4px solid {colors[i]}; border-radius: 8px; margin-bottom: 12px;">
                     <p style="margin: 0; opacity: 0.7; font-size: 0.9em;">{label}</p>
-                    <h3 style="margin: 5px 0 0 0; color: {color};">{score}/10</h3>
+                    <h3 style="margin: 5px 0 0 0; color: {colors[i]};">{score}/10</h3>
                 </div>
                 """,
                 unsafe_allow_html=True
             )
 
-    # Feedback
+    # Detailed feedback
     if critique.get("feedback"):
         with st.expander("📝 Detailed Feedback", expanded=True):
             st.write(critique["feedback"])
 
-    # Improvements needed
+    # Improvements
     if critique.get("improvements_needed"):
         with st.expander("🎯 AI Suggestions for Further Improvement"):
-            st.caption("*These are optional suggestions to make your resume even stronger*")
+            st.caption("*Optional suggestions to make your resume even stronger*")
             for improvement in critique["improvements_needed"]:
                 st.markdown(f"- {improvement}")
 
@@ -148,33 +112,17 @@ def render_critique_feedback(critique: Dict[str, Any]):
 
 
 def render_resume_preview(markdown_content: str):
-    """
-    Render resume preview with clear header.
-
-    Args:
-        markdown_content: Resume content in Markdown
-    """
+    """Render resume preview."""
     st.markdown("---")
     st.markdown("## 📄 Your AI-Generated Tailored Resume")
-    st.info("👇 **This is your NEW resume** - optimized for the job description you provided. Review it before downloading.")
+    st.info("👇 **This is your NEW resume** - optimized for the job description you provided.")
 
     with st.container():
         st.markdown(markdown_content)
 
 
-def render_download_buttons(
-    markdown_content: str,
-    pdf_path: str,
-    filename_prefix: str = "resume"
-):
-    """
-    Render download buttons for Markdown and PDF.
-
-    Args:
-        markdown_content: Resume in Markdown format
-        pdf_path: Path to PDF file
-        filename_prefix: Prefix for download filenames
-    """
+def render_download_buttons(markdown_content: str, pdf_path: str, filename_prefix: str = "resume"):
+    """Render download buttons for Markdown and PDF."""
     st.markdown("### 📥 Download Resume")
 
     col1, col2 = st.columns(2)
@@ -203,12 +151,7 @@ def render_download_buttons(
 
 
 def render_history_sidebar(history: list):
-    """
-    Render previous generations in sidebar with clickable chat names.
-
-    Args:
-        history: List of generation entries from database
-    """
+    """Render previous generations in sidebar."""
     st.sidebar.markdown("---")
     st.sidebar.markdown("### 📚 Previous Generations")
 
@@ -218,26 +161,15 @@ def render_history_sidebar(history: list):
 
     for entry in history[:10]:  # Show last 10
         timestamp = datetime.fromisoformat(entry["timestamp"])
-        
-        # Format: "Feb 12, 1:17 PM"
         formatted_time = timestamp.strftime("%b %d, %I:%M %p")
-        
-        job_title = entry.get('job_title', 'Unknown')
-        company = entry.get('company', 'N/A')
-        score = entry.get('final_score', 0)
-        
-        # Clickable expander with details
-        with st.sidebar.expander(
-            f"**{job_title}** • {formatted_time}",
-            expanded=False
-        ):
-            st.markdown(f"🏢 **{company}**")
-            st.markdown(f"⭐ **Score:** {score:.1f}/10")
-            st.markdown(f"🔄 **Iterations:** {entry.get('iterations', 0)}")
+
+        with st.sidebar.expander(f"**{entry.get('job_title', 'Unknown')}** • {formatted_time}", expanded=False):
+            st.markdown(f"🏢 **{entry.get('company', 'N/A')}**")
+            st.markdown(f"⭐ **Score:** {entry.get('final_score', 0):.1f}/10")
             
             st.markdown("---")
             
-            # Clickable button to restore
+            # Restore button
             if st.button("📂 Open This Chat", key=f"open_{entry['id']}", use_container_width=True):
                 restore_generation(entry['id'])
 
@@ -245,34 +177,44 @@ def render_history_sidebar(history: list):
             col1, col2 = st.columns(2)
             
             with col1:
-                if entry.get("markdown_path"):
+                # Markdown download
+                md_path = entry.get("markdown_path")
+                if md_path and os.path.exists(md_path):
                     try:
-                        with open(entry["markdown_path"], "r") as f:
+                        with open(md_path, "r", encoding="utf-8") as f:
                             md_content = f.read()
                         st.download_button(
                             "📝 MD",
                             data=md_content,
                             file_name=f"resume_{entry['id']}.md",
+                            mime="text/markdown",
                             key=f"md_{entry['id']}",
                             use_container_width=True
                         )
                     except:
-                        pass
+                        st.caption("MD unavailable")
+                else:
+                    st.caption("MD unavailable")
 
             with col2:
-                if entry.get("pdf_path"):
+                # PDF download
+                pdf_path = entry.get("pdf_path")
+                if pdf_path and os.path.exists(pdf_path):
                     try:
-                        with open(entry["pdf_path"], "rb") as f:
+                        with open(pdf_path, "rb") as f:
                             pdf_content = f.read()
                         st.download_button(
                             "📄 PDF",
                             data=pdf_content,
                             file_name=f"resume_{entry['id']}.pdf",
+                            mime="application/pdf",
                             key=f"pdf_{entry['id']}",
                             use_container_width=True
                         )
                     except:
-                        pass
+                        st.caption("PDF unavailable")
+                else:
+                    st.caption("PDF unavailable")
 
 
 def restore_generation(generation_id: int):
@@ -303,22 +245,17 @@ def restore_generation(generation_id: int):
 
 
 def render_error_message(error: str):
-    """
-    Render user-friendly error message.
-
-    Args:
-        error: Error message
-    """
+    """Render user-friendly error message."""
     st.error(f"❌ **Error:** {error}")
 
     with st.expander("🔧 Troubleshooting Tips"):
         st.markdown("""
-        **Common issues and solutions:**
+        **Common issues:**
 
-        1. **API Key Error:** Ensure `QUBRID_API_KEY` is set in `.env` file
-        2. **File Upload Error:** Check that the file is a valid PDF or Markdown
-        3. **Processing Timeout:** Try with a shorter resume or job description
-        4. **Network Error:** Check your internet connection and try again
+        1. **API Key Error:** Check `QUBRID_API_KEY` in `.env` file
+        2. **File Upload Error:** Ensure file is a valid PDF or Markdown
+        3. **Processing Timeout:** Try with shorter resume or job description
+        4. **Network Error:** Check internet connection
 
-        If the problem persists, please check the logs or contact support.
+        If problem persists, check logs or contact support.
         """)

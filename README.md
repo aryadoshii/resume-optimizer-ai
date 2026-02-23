@@ -136,6 +136,7 @@ Visit **http://localhost:8501** and start optimizing! 🎉
 ```
 resume-optimizer-ai/
 ├── backend/
+│   ├── __init__.py           # Package marker
 │   ├── nodes.py              # AI processing functions
 │   ├── prompts.py            # AI prompt templates
 │   ├── graph.py              # LangGraph workflow
@@ -143,6 +144,8 @@ resume-optimizer-ai/
 │   ├── utils.py              # File processing
 │   └── state.py              # Data structure
 ├── frontend/
+│   ├── assets/               # Images, logos
+│   │   └── qubrid_logo.png   # Qubrid logo
 │   ├── app.py                # Main Streamlit app
 │   ├── components.py         # UI components
 │   └── styles.py             # CSS themes
@@ -151,7 +154,10 @@ resume-optimizer-ai/
 │   ├── outputs/              # Generated resumes
 │   └── career_sync.db        # SQLite database
 ├── .env.example              # API key template
-└── pyproject.toml            # Dependencies
+├── .gitignore                # Git exclusions
+├── pyproject.toml            # Dependencies (single source of truth)
+├── test_api.py               # API testing script
+└── README.md                 # This file
 ```
 
 ---

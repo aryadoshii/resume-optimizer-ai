@@ -1,6 +1,6 @@
 # Resume-Optimizer-AI 🚀
 
-> Transform your resume with AI. Get scored, receive personalized suggestions, and generate ATS-optimized resumes tailored to any job—all powered by Mistral 7B.
+> Transform your resume with AI. Get scored, receive personalized suggestions, and generate ATS-optimized resumes tailored to any job, powered by Mistral 7B.
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-red.svg)](https://streamlit.io/)

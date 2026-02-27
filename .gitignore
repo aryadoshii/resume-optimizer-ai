@@ -29,6 +29,7 @@ env/
 
 # UV
 .uv/
+# uv.lock  ← Commented out = lock file WILL be committed
 
 # Environment variables
 .env
@@ -48,6 +49,7 @@ data/outputs/*
 !data/outputs/.gitkeep
 data/history/*
 !data/history/.gitkeep
+data/career_sync.db
 
 # Streamlit
 .streamlit/

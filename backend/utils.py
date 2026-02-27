@@ -3,6 +3,7 @@
 from pathlib import Path
 import PyPDF2
 import markdown
+import re
 
 # Data directories
 DATA_DIR = Path(__file__).parent.parent / "data"
@@ -85,90 +86,136 @@ def save_markdown(content: str, filename: str) -> Path:
 
 def convert_markdown_to_pdf(content: str, filename: str) -> Path:
     """
-    Convert markdown to styled PDF.
+    Convert markdown to PDF using ReportLab (pure Python, no system dependencies).
     
     Args:
         content: Markdown text
         filename: Base filename (without extension)
         
     Returns:
-        Path to generated PDF
+        Path to generated PDF, or None if conversion fails
     """
-    # Lazy import WeasyPrint (only when needed)
     try:
-        from weasyprint import HTML
-    except Exception as e:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+        from reportlab.lib.enums import TA_LEFT, TA_CENTER
+        
+    except ImportError:
         raise ImportError(
-            "WeasyPrint not available. On macOS, install dependencies:\n"
-            "brew install cairo pango gdk-pixbuf libffi\n"
-            f"Error: {str(e)}"
+            "ReportLab not installed. Install with:\n"
+            "pip install reportlab\n"
+            "Or skip PDF generation and use Markdown download only."
         )
     
-    # Convert markdown to HTML
-    html_content = markdown.markdown(
-        content,
-        extensions=['extra', 'nl2br']
-    )
-    
-    # Wrap in styled HTML
-    full_html = f"""
-    <!DOCTYPE html>
-    <html>
-    <head>
-        <meta charset="UTF-8">
-        <style>
-            @page {{
-                size: A4;
-                margin: 2cm;
-            }}
-            body {{
-                font-family: 'Arial', 'Helvetica', sans-serif;
-                font-size: 11pt;
-                line-height: 1.6;
-                color: #333;
-            }}
-            h1 {{
-                color: #2c3e50;
-                font-size: 24pt;
-                margin-bottom: 10pt;
-                border-bottom: 2px solid #3498db;
-                padding-bottom: 5pt;
-            }}
-            h2 {{
-                color: #34495e;
-                font-size: 16pt;
-                margin-top: 15pt;
-                margin-bottom: 8pt;
-            }}
-            h3 {{
-                color: #7f8c8d;
-                font-size: 13pt;
-                margin-top: 10pt;
-                margin-bottom: 5pt;
-            }}
-            ul, ol {{
-                margin-left: 20pt;
-            }}
-            li {{
-                margin-bottom: 3pt;
-            }}
-            a {{
-                color: #3498db;
-                text-decoration: none;
-            }}
-            strong {{
-                color: #2c3e50;
-            }}
-        </style>
-    </head>
-    <body>
-        {html_content}
-    </body>
-    </html>
-    """
-    
-    # Generate PDF
-    output_path = OUTPUTS_DIR / f"{filename}.pdf"
-    HTML(string=full_html).write_pdf(output_path)
-    
-    return output_path
+    try:
+        output_path = OUTPUTS_DIR / f"{filename}.pdf"
+        
+        # Create PDF
+        doc = SimpleDocTemplate(
+            str(output_path),
+            pagesize=letter,
+            rightMargin=72,
+            leftMargin=72,
+            topMargin=72,
+            bottomMargin=18,
+        )
+        
+        # Container for PDF elements
+        story = []
+        
+        # Define styles
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor='#2c3e50',
+            spaceAfter=12,
+            alignment=TA_CENTER,
+        )
+        
+        heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor='#34495e',
+            spaceAfter=6,
+            spaceBefore=12,
+        )
+        
+        normal_style = ParagraphStyle(
+            'CustomNormal',
+            parent=styles['Normal'],
+            fontSize=11,
+            leading=14,
+            textColor='#333333',
+        )
+        
+        # Parse markdown into simple text (basic formatting)
+        lines = content.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            
+            if not line:
+                story.append(Spacer(1, 0.2 * inch))
+                continue
+            
+            # Handle headers
+            if line.startswith('# '):
+                text = line[2:].strip()
+                # Remove markdown from headers
+                text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+                text = re.sub(r'\*(.+?)\*', r'\1', text)
+                story.append(Paragraph(text, title_style))
+                
+            elif line.startswith('## '):
+                text = line[3:].strip()
+                # Remove markdown from headers
+                text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+                text = re.sub(r'\*(.+?)\*', r'\1', text)
+                story.append(Paragraph(text, heading_style))
+                
+            elif line.startswith('### '):
+                text = line[4:].strip()
+                # Remove markdown from headers
+                text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+                text = re.sub(r'\*(.+?)\*', r'\1', text)
+                para_style = ParagraphStyle(
+                    'Heading3',
+                    parent=heading_style,
+                    fontSize=12,
+                )
+                story.append(Paragraph(text, para_style))
+                
+            # Handle lists
+            elif line.startswith('- ') or line.startswith('* '):
+                text = '• ' + line[2:].strip()
+                # Remove markdown from list items
+                text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+                text = re.sub(r'\*(.+?)\*', r'\1', text)
+                text = re.sub(r'`(.+?)`', r'\1', text)
+                story.append(Paragraph(text, normal_style))
+                
+            # Handle normal text - strip all markdown
+            else:
+                # Remove markdown formatting to avoid ReportLab parsing errors
+                text = re.sub(r'\*\*(.+?)\*\*', r'\1', line)  # Remove **bold**
+                text = re.sub(r'\*(.+?)\*', r'\1', text)      # Remove *italic*
+                text = re.sub(r'`(.+?)`', r'\1', text)        # Remove `code`
+                text = re.sub(r'\[(.+?)\]\(.+?\)', r'\1', text)  # Remove [links](url)
+                story.append(Paragraph(text, normal_style))
+        
+        # Build PDF
+        doc.build(story)
+        
+        return output_path
+        
+    except Exception as e:
+        # Return None on failure - PDF is optional
+        print(f"PDF generation failed: {str(e)}")
+        return None

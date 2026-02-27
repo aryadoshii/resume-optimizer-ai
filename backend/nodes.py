@@ -142,7 +142,7 @@ def critique_resume(state: ResumeState) -> ResumeState:
         )
         
         messages = [{"role": "user", "content": prompt}]
-        response = call_llm_with_retry(messages, temperature=0.5)
+        response = call_llm_with_retry(messages, temperature=0.1)
         
         # Parse JSON response
         try:
@@ -166,7 +166,7 @@ def critique_resume(state: ResumeState) -> ResumeState:
                 "experience_score": 0,
                 "ats_score": 0,
                 "formatting_score": 0,
-                "feedback": "Critique failed",
+                "feedback": f"Critique failed: {str(e)}",
                 "improvements_needed": [],
                 "approved": False
             },

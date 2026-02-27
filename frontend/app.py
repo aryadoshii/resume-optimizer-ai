@@ -1,6 +1,7 @@
 """Main Streamlit application for Resume-Optimizer-AI."""
 
 import sys
+import os
 from pathlib import Path
 
 # Add project root to Python path
@@ -15,7 +16,6 @@ from backend.utils import parse_pdf, parse_text_file, save_markdown, convert_mar
 from backend.nodes import analyze_job_description, critique_resume, draft_suggestions_only, draft_tailored_resume, finalize_resume
 from backend.database import init_database, save_generation, get_all_generations
 from frontend.styles import get_theme_css
-from PIL import Image
 from frontend.components import (
     render_header,
     render_theme_toggle,
@@ -33,12 +33,16 @@ INPUTS_DIR = DATA_DIR / "inputs"
 OUTPUTS_DIR = DATA_DIR / "outputs"
 
 
-# Load logo
-logo = Image.open("frontend/assets/qubrid_logo.png")
+# Load logo with fallback
+try:
+    from PIL import Image
+    logo = Image.open("frontend/assets/qubrid_logo.png")
+except:
+    logo = "🤖"  # Fallback emoji if logo not found
 
 st.set_page_config(
     page_title="Resume-Optimizer-AI",
-    page_icon=logo,  # Use actual logo
+    page_icon=logo,
     layout="wide"
 )
 
@@ -192,15 +196,21 @@ def create_final_resume():
     filename_base = f"resume_{timestamp}"
     
     markdown_path = save_markdown(current_state["final_resume"], filename_base)
+    
+    # Try to generate PDF (optional - will return None if fails)
     pdf_path = convert_markdown_to_pdf(current_state["final_resume"], filename_base)
     
-    current_state["output_pdf_path"] = str(pdf_path)
+    if pdf_path:
+        current_state["output_pdf_path"] = str(pdf_path)
+    else:
+        current_state["output_pdf_path"] = None
+        st.info("ℹ️ PDF generation unavailable - download Markdown instead")
     
     # Save to database
     current_state["initial_critique"] = st.session_state.initial_critique
     generation_id = save_generation(current_state, {
         "markdown": str(markdown_path),
-        "pdf": str(pdf_path)
+        "pdf": str(pdf_path) if pdf_path else ""
     })
     st.session_state.current_generation_id = generation_id
     
@@ -282,13 +292,39 @@ def main():
         
         render_resume_preview(final_state["final_resume"])
         
-        if final_state.get("output_pdf_path"):
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            render_download_buttons(
-                final_state["final_resume"],
-                final_state["output_pdf_path"],
-                f"resume_{timestamp}"
+        
+        # Download buttons on main page
+        st.markdown("### 📥 Download Your Resume")
+        
+        col1, col2 = st.columns(2)
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        with col1:
+            st.download_button(
+                label="📝 Download Markdown",
+                data=final_state["final_resume"],
+                file_name=f"resume_{timestamp}.md",
+                mime="text/markdown",
+                use_container_width=True,
+                type="primary"
             )
+        
+        with col2:
+            if final_state.get("output_pdf_path") and os.path.exists(final_state["output_pdf_path"]):
+                with open(final_state["output_pdf_path"], "rb") as f:
+                    pdf_bytes = f.read()
+                
+                st.download_button(
+                    label="📄 Download PDF",
+                    data=pdf_bytes,
+                    file_name=f"resume_{timestamp}.pdf",
+                    mime="application/pdf",
+                    use_container_width=True,
+                    type="primary"
+                )
+            else:
+                st.info("ℹ️ PDF unavailable - download Markdown and convert online")
         
         st.markdown("---")
         

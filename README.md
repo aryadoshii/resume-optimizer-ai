@@ -174,10 +174,8 @@ nano .env  # Add your QUBRID_API_KEY
 brew install cairo pango gdk-pixbuf libffi gobject-introspection
 
 # 6. Run the app
-streamlit run frontend/app.py
+uv run streamlit run frontend/app.py
 ```
-
-Visit **http://localhost:8501** and start optimizing! 🎉
 
 ---
 

@@ -1,40 +1,44 @@
-![Advanced AI Studio Banner](frontend/assets/qubrid_banner.png)
+<div align="center">
+
+<img src="frontend/assets/qubrid_banner.png" alt="Resume-Optimizer-AI" width="100%">
 
 # Resume-Optimizer-AI 🚀
 
-> Transform your resume with AI. Get scored, receive personalized suggestions, and generate ATS-optimized resumes tailored to any job.
+Transform your resume with AI. Get scored, receive personalized suggestions, and generate ATS-optimized resumes tailored to any job.
 
 [![Python](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Streamlit](https://img.shields.io/badge/Streamlit-1.40+-red.svg)](https://streamlit.io/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
+</div>
 
 ---
 
 ## 📸 UI Screenshots
 
 ### 🎯 Upload & Evaluate
-<img src="frontend/assets/1-upload.png" alt="Upload Resume" width="800"/>
+<img src="frontend/assets/1-upload.png" alt="Upload Resume" width="1000"/>
 
 *Upload your resume and job description, then get instant AI-powered evaluation with progress tracking.*
 
 ---
 
 ### 📊 AI Scoring Dashboard
-<img src="frontend/assets/2-scoring.png" alt="Resume Evaluation" width="800"/>
+<img src="frontend/assets/2-scoring.png" alt="Resume Evaluation" width="1000"/>
 
 *Receive detailed scores across 4 key metrics: Keyword Optimization, Experience Relevance, ATS-Friendliness, and Professional Formatting.*
 
 ---
 
 ### 💡 Personalized Suggestions
-<img src="frontend/assets/3-suggestions.png" alt="Improvement Suggestions" width="800"/>
+<img src="frontend/assets/3-suggestions.png" alt="Improvement Suggestions" width="1000"/>
 
 *Get actionable, job-specific recommendations organized by category—review before generating your optimized resume.*
 
 ---
 
 ### 📄 Optimized Resume Preview
-<img src="frontend/assets/4-resume.png" alt="Generated Resume" width="800"/>
+<img src="frontend/assets/4-resume.png" alt="Generated Resume" width="1000"/>
 
 *Preview your AI-tailored resume with all suggestions applied, ready to download as Markdown or PDF.*
 
@@ -48,7 +52,7 @@
 ---
 
 ### 🌓 Dark Mode Support
-<img src="frontend/assets/6-dark-mode.png" alt="Dark Theme" width="800"/>
+<img src="frontend/assets/6-dark-mode.png" alt="Dark Theme" width="1000"/>
 
 *Beautiful dark and light themes with full accessibility and professional color-coded scoring.*
 
@@ -181,4 +185,8 @@ uv run streamlit run frontend/app.py
 
 ---
 
-**Made with ❤️ by Qubrid AI**
+<div align="center">
+
+  **Made with ❤️ by Qubrid AI**
+
+</div>

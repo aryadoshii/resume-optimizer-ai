@@ -168,19 +168,29 @@ cd resume-optimizer-ai
 
 # 2. Install UV package manager
 curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.zshrc  # Reload shell (or: source ~/.bashrc)
 
-# 3. Install dependencies
-uv pip install -e .
+# 3. Create virtual environment
+uv venv
 
-# 4. Set up API key
+# 4. Activate virtual environment
+source .venv/bin/activate  # macOS/Linux
+# OR: .venv\Scripts\activate  # Windows
+
+# 5. Install dependencies (choose one method)
+uv sync                    
+# OR: uv pip install -e .  # Alternative: Installs from pyproject.toml
+
+# 6. Set up API key
 cp .env.example .env
 nano .env  # Add your QUBRID_API_KEY
 
-# 5. (macOS only) Install PDF dependencies
+# 7. (macOS only) Install PDF dependencies
 brew install cairo pango gdk-pixbuf libffi gobject-introspection
 
-# 6. Run the app
+# 8. Run the app
 uv run streamlit run frontend/app.py
+# OR: streamlit run frontend/app.py  # If venv is activated
 ```
 
 ---

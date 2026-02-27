@@ -95,42 +95,6 @@ Each scored 0-10, averaged for overall score.
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.12+
-- [Qubrid API key](https://platform.qubrid.com)
-- UV package manager (recommended)
-
-### Installation
-
-```bash
-# 1. Clone repository
-git clone https://github.com/aryadoshii/resume-optimizer-ai.git
-cd resume-optimizer-ai
-
-# 2. Install UV package manager
-curl -LsSf https://astral.sh/uv/install.sh | sh
-
-# 3. Install dependencies
-uv pip install -e .
-
-# 4. Set up API key
-cp .env.example .env
-nano .env  # Add your QUBRID_API_KEY
-
-# 5. (macOS only) Install PDF dependencies
-brew install cairo pango gdk-pixbuf libffi gobject-introspection
-
-# 6. Run the app
-streamlit run frontend/app.py
-```
-
-Visit **http://localhost:8501** and start optimizing! 🎉
-
----
-
 ## 📁 Project Structure
 
 ```
@@ -181,4 +145,40 @@ resume-optimizer-ai/
 
 ---
 
-**Made with ❤️ by the Qubrid AI Team**
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.12+
+- [Qubrid API key](https://platform.qubrid.com)
+- UV package manager (recommended)
+
+### Installation
+
+```bash
+# 1. Clone repository
+git clone https://github.com/aryadoshii/resume-optimizer-ai.git
+cd resume-optimizer-ai
+
+# 2. Install UV package manager
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# 3. Install dependencies
+uv pip install -e .
+
+# 4. Set up API key
+cp .env.example .env
+nano .env  # Add your QUBRID_API_KEY
+
+# 5. (macOS only) Install PDF dependencies
+brew install cairo pango gdk-pixbuf libffi gobject-introspection
+
+# 6. Run the app
+streamlit run frontend/app.py
+```
+
+Visit **http://localhost:8501** and start optimizing! 🎉
+
+---
+
+**Made with ❤️ by Qubrid AI**

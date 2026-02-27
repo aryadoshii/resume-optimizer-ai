@@ -1,3 +1,5 @@
+![Advanced AI Studio Banner](frontend/assets/qubrid_banner.png)
+
 # Resume-Optimizer-AI 🚀
 
 > Transform your resume with AI. Get scored, receive personalized suggestions, and generate ATS-optimized resumes tailored to any job.

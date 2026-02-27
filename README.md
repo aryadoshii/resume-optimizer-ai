@@ -138,7 +138,7 @@ resume-optimizer-ai/
 - **Workflow**: LangGraph for orchestration
 - **UI**: Streamlit with custom themes
 - **Storage**: SQLite for history
-- **Processing**: PyPDF2, WeasyPrint, Markdown
+- **Processing**: PyPDF2, ReportLab, Markdown
 
 ---
 
@@ -177,20 +177,16 @@ uv venv
 source .venv/bin/activate  # macOS/Linux
 # OR: .venv\Scripts\activate  # Windows
 
-# 5. Install dependencies (choose one method)
-uv sync                    
-# OR: uv pip install -e .  # Alternative: Installs from pyproject.toml
+# 5. Install dependencies (recommended)
+uv sync  # Uses uv.lock for exact versions
+# OR: uv pip install -e .  # Uses pyproject.toml
 
 # 6. Set up API key
 cp .env.example .env
 nano .env  # Add your QUBRID_API_KEY
 
-# 7. (macOS only) Install PDF dependencies
-brew install cairo pango gdk-pixbuf libffi gobject-introspection
-
-# 8. Run the app
-uv run streamlit run frontend/app.py
-# OR: streamlit run frontend/app.py  # If venv is activated
+# 7. Run the app
+streamlit run frontend/app.py
 ```
 
 ---
